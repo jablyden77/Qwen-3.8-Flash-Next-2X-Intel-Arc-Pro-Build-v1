@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+NAME=${NAME:-flashnext-m64-ngl47}
+MODEL_DIR=${MODEL_DIR:-/srv/models/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64/Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64}
+MODEL=${MODEL:-Qwen3.8-Flash-Next-AD-4.27bpw-Q4_K_M-M64-00001-of-00033.gguf}
+PORT=${PORT:-18126}
+IMAGE=${IMAGE:-ghcr.io/ggml-org/llama.cpp:server-intel}
+
+docker rm -f "$NAME" >/dev/null 2>&1 || true
+
+exec docker run --name "$NAME" \
+  --device /dev/dri/renderD128:/dev/dri/renderD128 \
+  --device /dev/dri/renderD129:/dev/dri/renderD129 \
+  --group-add 991 \
+  -e GGML_SYCL_FA_ONEDNN=0 \
+  -v "$MODEL_DIR:/model:ro" \
+  -p "127.0.0.1:${PORT}:8000" \
+  "$IMAGE" \
+  --model "/model/$MODEL" \
+  --host 0.0.0.0 \
+  --port 8000 \
+  --jinja \
+  --device SYCL0,SYCL1 \
+  --n-gpu-layers 47 \
+  --split-mode layer \
+  --tensor-split 1,1 \
+  --ctx-size 32768 \
+  --parallel 1 \
+  --flash-attn auto \
+  --batch-size 2048 \
+  --ubatch-size 2048
